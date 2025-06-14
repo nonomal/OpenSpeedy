@@ -15,26 +15,32 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
-#ifndef MEMUTILS_H
-#define MEMUTILS_H
+#ifndef TASKSCHEDULER_H
+#define TASKSCHEDULER_H
+
 #include <windows.h>
-#include <pdh.h>
-
-class MemUtils
+#include <QObject>
+#include <QString>
+#include <comdef.h>
+#include <taskschd.h>
+class TaskScheduler : public QObject
 {
-   private:
-    PDH_HQUERY hQuery = NULL;
-    PDH_HCOUNTER hCounter = NULL;
-    bool initialized = false;
+    Q_OBJECT
+  public:
+    explicit TaskScheduler(QObject* parent = nullptr);
+    ~TaskScheduler();
 
-   public:
-    MemUtils();
+    bool createStartupTask(const QString& taskName,
+                           const QString& executablePath);
+    bool deleteTask(const QString& taskName);
+    bool isTaskExists(const QString& taskName);
+    bool enableTask(const QString& taskName, bool enable);
 
-    bool init();
-
-    double getTotal();
-
-    double getUsage();
+  private:
+    ITaskService* pService;
+    bool initializeTaskService();
+    void cleanup();
+  signals:
 };
 
-#endif  // MEMUTILS_H
+#endif // TASKSCHEDULER_H

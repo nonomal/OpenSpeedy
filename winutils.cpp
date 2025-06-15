@@ -1,3 +1,20 @@
+/*
+ * OpenSpeedy - Open Source Game Speed Controller
+ * Copyright (C) 2025 Game1024
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include "winutils.h"
 #include <QDebug>
 #include <QFileInfo>
@@ -6,7 +23,6 @@
 #include <tlhelp32.h>
 #include <wchar.h>
 #include <winternl.h>
-
 static QSet<std::wstring> systemNames = {
     L"svchost.exe",
     L"wininit.exe",
@@ -647,6 +663,31 @@ winutils::checkProcessProtection(DWORD processId)
     return false;
 }
 
+void
+winutils::setAutoStart(bool enable,
+                       const QString& appName,
+                       const QString& execPath)
+{
+    TaskScheduler scheduler;
+
+    if (enable)
+    {
+        scheduler.createStartupTask(appName, execPath);
+        scheduler.enableTask(appName, true);
+    }
+    else
+    {
+        scheduler.deleteTask(appName);
+    }
+}
+
+bool
+winutils::isAutoStartEnabled(const QString& appName)
+{
+    TaskScheduler scheduler;
+    return scheduler.isTaskExists(appName);
+}
+
 typedef struct _OSVERSIONINFOEXW RTL_OSVERSIONINFOEXW, *PRTL_OSVERSIONINFOEXW;
 
 typedef LONG NTSTATUS;
@@ -893,6 +934,28 @@ winutils::getProcessMainThread(DWORD processId)
 
     CloseHandle(hSnapshot);
     return mainThreadId;
+}
+
+QString
+winutils::getProcessNameById(DWORD processId)
+{
+    HANDLE hProcess = OpenProcess(
+      PROCESS_QUERY_INFORMATION | PROCESS_VM_READ, FALSE, processId);
+    if (hProcess == NULL)
+    {
+        return QString();
+    }
+
+    wchar_t processName[MAX_PATH];
+    if (GetModuleBaseName(hProcess, NULL, processName, MAX_PATH))
+    {
+        CloseHandle(hProcess);
+        QString name = QString::fromWCharArray(processName);
+        return name;
+    }
+
+    CloseHandle(hProcess);
+    return QString();
 }
 
 bool

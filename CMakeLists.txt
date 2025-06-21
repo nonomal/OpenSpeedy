@@ -17,6 +17,7 @@ find_package(Qt${QT_VERSION_MAJOR} REQUIRED COMPONENTS Widgets Network WinExtras
 set(TS_FILES
   OpenSpeedy_zh_CN.ts
   OpenSpeedy_en_US.ts
+  OpenSpeedy_zh_TW.ts
 )
 
 set(PROJECT_SOURCES
@@ -58,26 +59,33 @@ else()
           icons.rc
           config.h
           windbg.h
-          docs/README_en.md
-          docs/README_ja.md
           aboutdialog.ui
           aboutdialog.h aboutdialog.cpp aboutdialog.ui
           preferencedialog.h preferencedialog.cpp preferencedialog.ui
           qsinglekeysequenceedit.h qsinglekeysequenceedit.cpp
           ${QM_FILES}
+
+
       )
 
       add_library(winutils
         winutils.h winutils.cpp
         cpuutils.h cpuutils.cpp
         memutils.h memutils.cpp
+        taskscheduler.h
+        taskscheduler.cpp
       )
 
       target_include_directories(winutils PUBLIC
           ${CMAKE_CURRENT_SOURCE_DIR}
       )
 
-    target_link_libraries(winutils PUBLIC Qt${QT_VERSION_MAJOR}::Core pdh)
+    target_link_libraries(winutils PUBLIC
+      Qt${QT_VERSION_MAJOR}::Core
+      pdh
+      ole32
+      oleaut32
+      taskschd)
 endif()
 
 

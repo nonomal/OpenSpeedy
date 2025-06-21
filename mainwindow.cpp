@@ -1,8 +1,26 @@
+/*
+ * OpenSpeedy - Open Source Game Speed Controller
+ * Copyright (C) 2025 Game1024
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include "./ui_mainwindow.h"
 #include "mainwindow.h"
 #include <QCloseEvent>
 #include <QDateTime>
 #include <QDebug>
+#include <QDir>
 #include <QMessageBox>
 #include <QScreen>
 #include <QStyle>
@@ -29,6 +47,16 @@ MainWindow::~MainWindow()
 }
 
 void
+MainWindow::recreate()
+{
+    layout()->invalidate();
+    layout()->activate();
+    adjustSize();
+
+    recreateTray();
+}
+
+void
 MainWindow::refresh()
 {
     ui->cpuContent->setText(QString("<span style='color:blue'>%1%</span>")
@@ -52,16 +80,26 @@ MainWindow::on_sliderCtrl_valueChanged(int value)
 
     if (factor >= 1.0)
     {
-        ui->sliderCtrl->setToolTip(QString("%1倍").arg(factor, 0, 'f', 2));
-        ui->sliderLabel->setText(QString("✖️%1倍").arg(factor, 0, 'f', 2));
+        ui->sliderCtrl->setToolTip(QString(tr("%1倍")).arg(factor, 0, 'f', 2));
+        ui->sliderLabel->setText(QString(tr("✖️%1倍")).arg(factor, 0, 'f', 2));
     }
     else
     {
-        ui->sliderCtrl->setToolTip(QString("%1倍").arg(factor, 0, 'f', 4));
-        ui->sliderLabel->setText(QString("✖️%1倍").arg(factor, 0, 'f', 4));
+        ui->sliderCtrl->setToolTip(QString(tr("%1倍")).arg(factor, 0, 'f'));
+        ui->sliderLabel->setText(QString(tr("✖️%1倍")).arg(factor, 0, 'f'));
     }
+
+    ui->sliderInputSpinBox->setValue(factor);
     m_settings->setValue(CONFIG_SLIDERVALUE_KEY, value);
     m_settings->sync();
+}
+
+void
+MainWindow::on_sliderInputSpinBox_editingFinished()
+{
+    double factor = ui->sliderInputSpinBox->value();
+    ui->sliderInputSpinBox->clearFocus();
+    ui->sliderCtrl->setValue(sliderValue(factor));
 }
 
 void
@@ -166,7 +204,7 @@ MainWindow::speedFactor(int sliderValue)
     }
     else if (sliderValue < 0.0)
     {
-        factor = 1.0 + (double)sliderValue / 10000;
+        factor = 1.0 + (double)sliderValue / 1000000;
     }
     else
     {
@@ -182,16 +220,17 @@ MainWindow::sliderValue(double speedFactor)
     int sliderValue = 0;
     if (speedFactor > 1.0)
     {
-        sliderValue = (speedFactor - 1.0) * 100;
+        sliderValue = (long long)(speedFactor * 100) - 100;
     }
     else if (speedFactor < 1.0)
     {
-        sliderValue = (1.0 - speedFactor) * 10000;
+        sliderValue = (long long)(speedFactor * 1000000) - 1000000;
     }
     else
     {
         sliderValue = 0;
     }
+    qDebug() << sliderValue;
 
     return sliderValue;
 }
@@ -200,13 +239,13 @@ void
 MainWindow::recreateTray()
 {
     qDebug() << "重绘托盘";
-    adjustSize();
     delete trayMenu;
     delete trayIcon;
     delete showAction;
     delete hideAction;
     delete quitAction;
     createTray();
+    adjustSize();
 }
 
 void
@@ -244,7 +283,7 @@ MainWindow::init()
     connect(QGuiApplication::primaryScreen(),
             &QScreen::logicalDotsPerInchChanged,
             this,
-            &MainWindow::recreateTray);
+            &MainWindow::recreate);
     m_thread->start();
     m_processMonitor->start();
 
@@ -268,6 +307,15 @@ MainWindow::init()
                        ui->sliderCtrl->maximum());
 
     ui->sliderCtrl->setValue(value);
+
+    if (winutils::isAutoStartEnabled(QApplication::applicationName()))
+    {
+        ui->autoStartCheckBox->setCheckState(Qt::Checked);
+    }
+    else
+    {
+        ui->autoStartCheckBox->setCheckState(Qt::Unchecked);
+    }
 
     /* 首选项菜单 */
     connect(ui->menuPreference,
@@ -310,6 +358,10 @@ MainWindow::init()
     {
         ui->actionCN->setChecked(true);
     }
+    else if (language == "zh_TW")
+    {
+        ui->actionTW->setChecked(true);
+    }
     else if (language == "en_US")
     {
         ui->actionEN->setChecked(true);
@@ -320,6 +372,20 @@ MainWindow::init()
             [this]
             {
                 m_settings->setValue(CONFIG_LANGUAGE, "zh_CN");
+                QMessageBox msgBox(this);
+                msgBox.setWindowFlags(Qt::Dialog | Qt::WindowTitleHint |
+                                      Qt::CustomizeWindowHint);
+                msgBox.setIcon(QMessageBox::Information);
+                msgBox.setWindowTitle(tr("提示"));
+                msgBox.setText(tr("直到重启应用后，界面的语言才会生效"));
+                msgBox.exec();
+            });
+
+    connect(ui->actionTW,
+            &QAction::triggered,
+            [this]
+            {
+                m_settings->setValue(CONFIG_LANGUAGE, "zh_TW");
                 QMessageBox msgBox(this);
                 msgBox.setWindowFlags(Qt::Dialog | Qt::WindowTitleHint |
                                       Qt::CustomizeWindowHint);
@@ -484,4 +550,24 @@ MainWindow::nativeEventFilter(const QByteArray& eventType,
     }
 
     return false; // 让其他过滤器处理
+}
+
+void
+MainWindow::on_autoStartCheckBox_stateChanged(int state)
+{
+    QString execFilePath =
+      QString("\"%1\"").arg(QApplication::applicationFilePath());
+    if (state == Qt::Checked)
+    {
+
+        qDebug() << QApplication::applicationName()
+                 << QApplication::applicationFilePath();
+        winutils::setAutoStart(
+          true, QApplication::applicationName(), execFilePath);
+    }
+    else
+    {
+        winutils::setAutoStart(
+          false, QApplication::applicationName(), execFilePath);
+    }
 }

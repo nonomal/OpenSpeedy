@@ -1,17 +1,39 @@
+/*
+ * OpenSpeedy - Open Source Game Speed Controller
+ * Copyright (C) 2025 Game1024
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #include "mainwindow.h"
 #include "windbg.h"
 #include <QApplication>
+#include <QCommandLineParser>
 #include <QLocalServer>
 #include <QLocalSocket>
 #include <QLocale>
 #include <QTranslator>
+#include <ShellScalingApi.h>
 int
 main(int argc, char* argv[])
 {
     SetUnhandledExceptionFilter(createMiniDump);
+    SetProcessDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2);
     QApplication::setAttribute(Qt::AA_EnableHighDpiScaling);
     QApplication::setAttribute(Qt::AA_UseHighDpiPixmaps);
+    QApplication::setAttribute(Qt::AA_UseSoftwareOpenGL);
     QApplication a(argc, argv);
+    winutils::enableAllPrivilege();
 
     // 检查是否已有实例在运行
     QString unique = "OpenSpeedy";
@@ -44,9 +66,25 @@ main(int argc, char* argv[])
         a.installTranslator(&translator);
     }
 
+    // 解析命令行参数
+    QCommandLineParser parser;
+    parser.setApplicationDescription("OpenSpeedy");
+    QCommandLineOption minimizeOption(
+      QStringList() << "m" << "minimize-to-tray", "启动时最小化到托盘");
+    parser.addOption(minimizeOption);
+    parser.process(a);
+
     MainWindow w;
-    w.resize(800, 768);
-    w.show();
+    w.resize(1024, 768);
+
+    if (parser.isSet(minimizeOption))
+    {
+        w.hide();
+    }
+    else
+    {
+        w.show();
+    }
 
     // 创建并启动本地服务器
     QLocalServer server;

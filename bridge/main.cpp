@@ -14,28 +14,30 @@
 #define SPEEDPATCH_DLL SPEEDPATCH64_DLL
 #endif
 
-void handleInject(int processId, QString dllPath)
+void
+handleInject(int processId, QString dllPath)
 {
     qDebug() << "执行 inject，进程ID:" << processId;
-    // 这里实现你的inject逻辑
-    winutils::injectDll(processId, dllPath.toStdWString());
+    winutils::injectDll(processId, dllPath);
+    SetProcessStatus(processId, true);
 }
 
-void handleUnhook(int processId, QString dllPath)
+void
+handleUnhook(int processId, QString dllPath)
 {
     qDebug() << "执行 unhook，进程ID:" << processId;
-    // 这里实现你的unhook逻辑
-    winutils::unhookDll(processId, dllPath.toStdWString());
+    SetProcessStatus(processId, false);
 }
 
-void handleChange(double factor)
+void
+handleChange(double factor)
 {
     qDebug() << "执行 change，参数:" << factor;
-    // 这里实现你的change逻辑
     ChangeSpeed(factor);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char* argv[])
 {
     SetUnhandledExceptionFilter(createMiniDump);
     QCoreApplication a(argc, argv);
@@ -45,7 +47,7 @@ int main(int argc, char *argv[])
     }
 
     QString dllPath = QDir::toNativeSeparators(
-        QCoreApplication::applicationDirPath() + "/" + SPEEDPATCH_DLL);
+      QCoreApplication::applicationDirPath() + "/" + SPEEDPATCH_DLL);
 
     QTextStream in(stdin);
     QTextStream out(stdout);
@@ -68,7 +70,8 @@ int main(int argc, char *argv[])
             break;
         }
         line = line.trimmed();
-        if (line.isEmpty()) continue;
+        if (line.isEmpty())
+            continue;
 
         QRegularExpressionMatch match;
         if ((match = injectRegex.match(line)).hasMatch())

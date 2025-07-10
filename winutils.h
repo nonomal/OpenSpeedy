@@ -1,11 +1,28 @@
+/*
+ * OpenSpeedy - Open Source Game Speed Controller
+ * Copyright (C) 2025 Game1024
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
 #ifndef WINUTILS_H
 #define WINUTILS_H
 #include <windows.h>
+#include "taskscheduler.h"
 #include <QSet>
 #include <QString>
 #include <string>
 #include <tlhelp32.h>
-
 struct ProcessInfo
 {
     DWORD pid;
@@ -19,32 +36,38 @@ struct ProcessInfo
 
 class winutils
 {
-   public:
+  public:
     winutils();
 
-   public:
+  public:
     // DLL 注入
-    static bool injectDll(DWORD processId, const std::wstring& dllPath);
+    static bool injectDll(DWORD processId, const QString& dllPath);
 
     // 远程 DLL 注入
-    static bool injectDllViaCRT(DWORD processId, const std::wstring& dllPath);
+    static bool injectDllViaCRTA(DWORD processId, const QString& dllPath);
+    static bool injectDllViaCRTW(DWORD processId, const QString& dllPath);
 
     // APC DLL 注入
-    static bool injectDllViaAPC(DWORD processId, const std::wstring& dllPath);
-
-    // 汇编注入
-    static bool injectDllViaASM(DWORD processId, const std::wstring& dllPath);
+    static bool injectDllViaAPCA(DWORD processId, const QString& dllPath);
+    static bool injectDllViaAPCW(DWORD processId, const QString& dllPath);
 
     // Windows Hooks 注入
-    static bool injectDllViaWHK(DWORD processId, const std::wstring& dllPath);
+    static bool injectDllViaWHKA(DWORD processId, const QString& dllPath);
+    static bool injectDllViaWHKW(DWORD processId, const QString& dllPath);
 
     // DLL 卸载
-    static bool unhookDll(DWORD processId, const std::wstring& dllPath);
+    static bool unhookDll(DWORD processId, const QString& dllPath);
 
     // 检查DLL是否已挂载
-    static bool checkDllExist(DWORD processId, const std::wstring& dllPath);
+    static bool checkDllExist(DWORD processId, const QString& dllPath);
 
     static bool checkProcessProtection(DWORD processId);
+
+    static void setAutoStart(bool enable,
+                             const QString& appName,
+                             const QString& execPath);
+
+    static bool isAutoStartEnabled(const QString& appName);
 
     static BOOL getWindowsVersion(DWORD* majorVersion,
                                   DWORD* minorVersion,
@@ -61,7 +84,9 @@ class winutils
     // 获取进程中的主线程
     static DWORD getProcessMainThread(DWORD processId);
 
+    static QString getProcessNameById(DWORD processId);
+
     static bool enableAllPrivilege();
 };
 
-#endif  // WINUTILS_H
+#endif // WINUTILS_H
